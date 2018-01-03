@@ -130,6 +130,8 @@ function jira {
     COMMAND=$1
   fi
 
+  JIRA_TOKEN=$(awk '/^token/{print $3}' ~/.jiraconfig)
+  JIRA_USER_EMAIL=$(awk '/^user_email/{print $3}' ~/.jiraconfig)
   JIRA_AUTH=$(awk '/^auth/{print $3}' ~/.jiraconfig)
   JIRA_DOMAIN=$(awk '/^domain/{print $3}' ~/.jiraconfig)
   JIRA_PROJECTS=$(awk '/^projects/{print $3}' ~/.jiraconfig)
@@ -150,7 +152,9 @@ function jira {
   fi
 
   if [[ $COMMAND == "ok" ]]; then
-    CURL=$(curl --silent -LI --header "Authorization: Basic ${JIRA_AUTH}" --header "Content-Type: application/json" -XGET ${JIRA_DOMAIN}/rest/api/2/myself | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+    CURL=$(curl --silent -LI --header -XGET ${JIRA_DOMAIN}/rest/api/2/myself  --user ${JIRA_USER_EMAIL}:${JIRA_TOKEN} | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
 
     if [[ "$CURL" == "HTTP/1.1 200 OK" ]]; then
       echo "OK"
@@ -196,7 +200,7 @@ function jira {
 
     JQ_QUERY='.issues[]|"\(.key)\t\(.fields.summary)"'
     TRIM=$(tr -d ' ' <<< $LINE)
-    CURL=$(curl --location --silent --request POST --header "Authorization: Basic ${JIRA_AUTH}" --header "Content-Type: application/json" ${JIRA_DOMAIN}/rest/api/2/search -d '{"jql":"'"${PROJECT_CLAUSE}"'text ~ \"'"${SEARCH}"'\" ORDER BY updated DESC", "maxResults":15}')
+    CURL=$(curl --location --silent --request POST ${JIRA_DOMAIN}/rest/api/2/search --user ${JIRA_USER_EMAIL}:${JIRA_TOKEN}  -d '{"jql":"'"${PROJECT_CLAUSE}"'text ~ \"'"${SEARCH}"'\" ORDER BY updated DESC", "maxResults":15}')
 
     if [[ ! $? -eq 0 ]]; then
       echo "Curling [${JIRA_DOMAIN}/rest/api/2/search] has failed; stopping." >&2
@@ -228,7 +232,7 @@ function jira {
     fi
 
     JQ_QUERY='.issues[]|"\(.key)\t\(.fields.summary)"'
-    CURL=$(curl --location --silent --request POST --header "Authorization: Basic ${JIRA_AUTH}" --header "Content-Type: application/json" ${JIRA_DOMAIN}/rest/api/2/search -d '{"jql":"'"${JQL}"'", "maxResults":15}')
+    CURL=$(curl --location --silent --request POST ${JIRA_DOMAIN}/rest/api/2/search --user ${JIRA_USER_EMAIL}:${JIRA_TOKEN} -d '{"jql":"'"${JQL}"'", "maxResults":15}')
 
     if [[ ! $? -eq 0 ]]; then
       echo "Curling [${JIRA_DOMAIN}/rest/api/2/search] has failed; stopping." >&2
@@ -317,7 +321,7 @@ function jira {
 
         *)
               TRIM=$(tr -d ' ' <<< $LINE)
-              CURL=$(curl --location --silent --request GET --header "Authorization: Basic ${JIRA_AUTH}" --header "Content-Type: application/json" ${JIRA_DOMAIN}/rest/api/2/issue/${TRIM})
+              CURL=$(curl --location --silent --request GET ${JIRA_DOMAIN}/rest/api/2/issue/${TRIM} --user ${JIRA_USER_EMAIL}:${JIRA_TOKEN})
 
               if [[ ! $? -eq 0 ]]; then
                 echo "Curling [${JIRA_DOMAIN}/rest/api/2/issue/${TRIM}] has failed; stopping." >&2
